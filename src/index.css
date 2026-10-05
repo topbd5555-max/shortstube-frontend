@@ -9,7 +9,7 @@ body {
 
 /* 🌲 Mystic Nature Background */
 .nature-bg {
-  /* ডার্ক ন্যাচার ব্যাকগ্রাউন্ড যাতে নিয়ন লাইট সুন্দরভাবে ফুটে ওঠে */
+  /* ডার্ক ন্যাচার ব্যাকগ্রাউন্ড যাতে নিয়ন লাইট সুন্দরভাবে ফুটে ওঠে */
   background-image: linear-gradient(to bottom, rgba(5, 5, 20, 0.6), rgba(0, 0, 0, 0.9)), url('https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2000&auto=format&fit=crop');
   background-size: cover;
   background-position: center;
@@ -37,7 +37,7 @@ body {
   content: "";
   position: absolute;
   top: -50%; left: -50%; width: 200%; height: 200%;
-  /* ঘুরন্ত নিয়ন লাইটের কালার */
+  /* ঘুরন্ত নিয়ন লাইটের কালার */
   background: conic-gradient(from 0deg, transparent 0%, #ff00ff 25%, #00ffff 50%, #ff00ff 75%, transparent 100%);
   animation: spin-neon 3s linear infinite;
   z-index: -1;
@@ -117,3 +117,14 @@ body {
   100% { transform: translate(0, 0) rotate(0deg); }
 }
 @keyframes wingFlap { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(70deg); } }
+
+/* 📱 Scrollbar Hide Kora (TikTok Feel er jonno) */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
