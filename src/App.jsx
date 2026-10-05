@@ -6,7 +6,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
   const isActive = index === activeIndex;
 
   useEffect(() => {
-    // Smart Sensor: jodi screen e thake tahole play korbe (Feature 15 alternative)
     if (isActive && videoRef.current) {
       videoRef.current.play().then(() => setIsPlaying(true)).catch(err => console.log(err));
     } else if (videoRef.current) {
@@ -25,12 +24,10 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
         videoRef.current.play();
         setIsPlaying(true);
       }
-      // Haptic Feedback (Feature 17) - Mobile a feel hobe
       if (navigator.vibrate) navigator.vibrate(50); 
     }
   };
 
-  // Picture in Picture (Feature 19)
   const enablePiP = async (e) => {
     e.stopPropagation();
     if (videoRef.current && document.pictureInPictureEnabled) {
@@ -42,22 +39,19 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
     <div id={`video-${index}`} className="h-screen w-full snap-start flex flex-col items-center justify-center relative py-4">
       <div className="relative flex flex-col items-center">
         
-        {/* Dynamic UI Colors based on platform (Feature 16) */}
-        <div className={`neon-border-wrapper w-[340px] h-[600px] md:w-[380px] md:h-[680px] mb-6 shadow-[0_0_20px_${vid.platform === 'TikTok' ? 'rgba(255,20,147,0.3)' : 'rgba(34,211,238,0.3)'}]`}>
-          <div className="neon-inner flex flex-col relative overflow-hidden bg-black group" onClick={togglePlay}>
+        <div className={`neon-border-wrapper w-[340px] h-[600px] md:w-[380px] md:h-[680px] mb-6 shadow-[0_0_20px_${vid.source === 'tiktok' ? 'rgba(255,20,147,0.3)' : 'rgba(34,211,238,0.3)'}]`}>
+          <div className="neon-inner flex flex-col relative overflow-hidden bg-black group rounded-2xl" onClick={togglePlay}>
             
             <video
               ref={videoRef}
               className="w-full h-full object-cover cursor-pointer"
-              src={vid.videoUrl}
+              src={vid.video_url} /* ডাটাবেসের লিংকের সাথে মেলানো হয়েছে */
               loop
               playsInline
             />
 
-            {/* Dark Gradient */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 pointer-events-none"></div>
 
-            {/* Play/Pause Center Icon */}
             {!isPlaying && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
                 <div className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white text-4xl border border-white/20 pl-2">
@@ -66,9 +60,7 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
               </div>
             )}
 
-            {/* Floating Action Buttons */}
             <div className="absolute bottom-20 right-4 z-20 flex flex-col gap-5 items-center pointer-events-auto">
-              {/* Profile icon (Feature UX) */}
               <div className="w-10 h-10 bg-white rounded-full border-2 border-pink-500 overflow-hidden mb-2">
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${vid.title}`} alt="avatar" />
               </div>
@@ -82,7 +74,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
                 <span className="text-xs text-white mt-1 font-bold">456</span>
               </div>
               
-              {/* PiP Mode Button */}
               <div onClick={enablePiP} className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition" title="Picture in Picture">
                 <div className="text-2xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,1)]">🔲</div>
               </div>
@@ -93,13 +84,11 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
               </div>
             </div>
 
-            {/* Title & Category */}
             <div className="absolute bottom-6 left-5 right-20 z-20 pointer-events-none">
               <div className="flex gap-2 mb-3">
-                <span className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-[0_0_10px_rgba(34,211,238,0.8)] text-white ${vid.platform === 'TikTok' ? 'bg-gradient-to-r from-pink-500 to-rose-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
-                  {vid.platform}
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-[0_0_10px_rgba(34,211,238,0.8)] text-white ${vid.source === 'tiktok' ? 'bg-gradient-to-r from-pink-500 to-rose-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
+                  {vid.source === 'tiktok' ? 'TikTok' : 'YouTube'}
                 </span>
-                {/* Auto Tag (Feature 9) */}
                 <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 text-white backdrop-blur-md">
                   #Trending
                 </span>
@@ -118,38 +107,34 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
   );
 };
 
-// Main App component
-function App() {
+export default function App() {
   const [allVideos, setAllVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Tik Shorts');
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Background Particles
   const rains = useMemo(() => Array.from({ length: 40 }).map(() => ({ left: `${Math.random() * 100}vw`, animationDuration: `${Math.random() * 1 + 0.5}s`, animationDelay: `${Math.random() * 2}s` })), []);
   const fireflies = useMemo(() => Array.from({ length: 20 }).map(() => ({ left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh`, animationDuration: `${Math.random() * 3 + 2}s`, animationDelay: `${Math.random() * 2}s` })), []);
   const butterflies = useMemo(() => Array.from({ length: 5 }).map(() => ({ left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh`, animationDuration: `${Math.random() * 5 + 5}s`, animationDelay: `${Math.random() * 3}s` })), []);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/videos', {
-      method: 'GET',
-      headers: { 'x-api-key': 'ShortsTube_Pro_Max_Secret_2026', 'Content-Type': 'application/json' }
-    })
+    // API কল করার লিংক বসানো হয়েছে
+    fetch('http://localhost:5000/api/videos')
       .then(res => res.json())
       .then(data => { 
-        setAllVideos(data.videos.reverse()); 
+        setAllVideos(data.reverse()); 
         setLoading(false); 
       })
       .catch(err => { console.error("Error:", err); setLoading(false); });
   }, []);
 
+  // ডাটাবেসের সোর্স অনুযায়ী ফিল্টার করা হয়েছে
   const displayedVideos = allVideos.filter(vid => {
-    if (activeTab === 'Tik Shorts') return vid.platform === 'TikTok';
-    if (activeTab === 'You Shorts') return vid.platform === 'YouTube';
+    if (activeTab === 'Tik Shorts') return vid.source === 'tiktok';
+    if (activeTab === 'You Shorts') return vid.source === 'youtube';
     return false;
   });
 
-  // Smooth Scroll function
   const scrollToVideo = (index) => {
     if (index >= 0 && index < displayedVideos.length) {
       document.getElementById(`video-${index}`).scrollIntoView({ behavior: 'smooth' });
@@ -157,7 +142,6 @@ function App() {
     }
   };
 
-  // Keyboard Navigation & Play/Pause (Mouse & Keyboard control)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown') {
@@ -168,7 +152,6 @@ function App() {
         scrollToVideo(activeIndex - 1);
       } else if (e.key === ' ') {
         e.preventDefault();
-        // Spacebar diye play pause korar logic video er vitore click e ache, tobe ekhane general scroll logic rakha holo
         document.querySelector(`#video-${activeIndex} .neon-inner`).click();
       }
     };
@@ -177,7 +160,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeIndex, displayedVideos.length]);
 
-  // Observer update for scroll tracking
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -198,14 +180,12 @@ function App() {
   return (
     <div className="nature-bg relative w-full h-screen overflow-hidden flex font-sans">
       
-      {/* Background Particles */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {rains.map((style, i) => <div key={`rain-${i}`} className="rain" style={style}></div>)}
         {fireflies.map((style, i) => <div key={`firefly-${i}`} className="firefly" style={style}></div>)}
         {butterflies.map((style, i) => <div key={`butterfly-${i}`} className="butterfly" style={style}></div>)}
       </div>
 
-      {/* Up & Down On-Screen Controls */}
       <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50 pointer-events-auto">
         <button onClick={() => scrollToVideo(activeIndex - 1)} className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-2xl hover:bg-white/30 hover:scale-110 transition flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">
           ▲
@@ -215,13 +195,11 @@ function App() {
         </button>
       </div>
 
-      {/* Sidebar */}
       <div className="hidden md:flex flex-col w-[280px] h-full glass-panel z-10 p-6">
         <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-12 tracking-wide drop-shadow-[0_0_15px_rgba(255,105,180,0.9)]">
           ShortsTube
         </h1>
         
-        {/* Mood/Category Selection (Feature 24 placeholder) */}
         <div className="mb-6 flex gap-2">
            <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/20">🔥 Trending</span>
            <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/20">😂 Funny</span>
@@ -233,16 +211,15 @@ function App() {
             <span className="font-bold text-[15px] tracking-wide">Tik Shorts</span>
           </div>
           <div onClick={() => { setActiveTab('You Shorts'); setActiveIndex(0); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'You Shorts' ? 'bg-[#1e293b]/60 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5),inset_0_0_10px_rgba(34,211,238,0.3)] text-white' : 'text-gray-300 hover:text-white'}`}>
-            <span className="text-cyan-400 text-2xl drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">▶️</span>
+            <span className="text-cyan-400 text-2xl drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">▶️️</span>
             <span className="font-bold text-[15px] tracking-wide">You Shorts</span>
           </div>
         </nav>
       </div>
 
-      {/* Main Video Feed */}
       <div className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth z-10 [&::-webkit-scrollbar]:hidden pointer-events-auto">
         {loading ? (
-          <div className="h-full flex items-center justify-center text-3xl font-bold text-cyan-400 animate-pulse">Loading {activeTab}...</div>
+          <div className="h-full flex items-center justify-center text-3xl font-bold text-cyan-400 animate-pulse">Loading...</div>
         ) : displayedVideos.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="glass-panel p-8 rounded-2xl border border-white/20 text-center">
@@ -259,5 +236,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
