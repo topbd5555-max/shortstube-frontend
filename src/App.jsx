@@ -92,29 +92,42 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
     <div id={`video-${index}`} className="h-screen w-full snap-start flex flex-col items-center justify-center relative py-4">
       <div className="relative flex flex-col items-center">
         
-        {/* 🚀 Dynamic Ambient Background (ভিডিও প্লে হলে নিওন গ্লো বাড়বে) */}
+        {/* 🚀 Dynamic Ambient Background */}
         <div className={`neon-border-wrapper w-[340px] h-[600px] md:w-[380px] md:h-[680px] mb-6 transition-all duration-700 shadow-[0_0_${isActive ? '40px' : '20px'}_${vid.source === 'tiktok' ? 'rgba(255,20,147,0.4)' : 'rgba(34,211,238,0.4)'}]`}>
           <div 
-            className="neon-inner flex flex-col relative overflow-hidden bg-black group rounded-2xl cursor-pointer" 
+            className="neon-inner flex flex-col relative overflow-hidden bg-black group rounded-2xl cursor-pointer h-full" 
             onClick={togglePlay}
             onDoubleClick={handleDoubleClick}
           >
             
-            {/* 🚀 Mobile Black Screen Fixed (muted={globalMute} + playsInline) */}
+            {/* 🚀 Mobile Black Screen Fixed + Auto Size Video */}
             {isNearActive && (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                src={optimizeUrl(vid.video_url)} 
-                loop
-                muted={globalMute} 
-                playsInline
-                preload="metadata"
-                onTimeUpdate={handleTimeUpdate}
-              />
+              <>
+                {/* 🚀 Premium Blurred Background */}
+                <video
+                  className="absolute inset-0 w-full h-full object-cover opacity-30 blur-3xl scale-125 z-0"
+                  src={optimizeUrl(vid.video_url)} 
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+                
+                {/* 🚀 Auto-Size Main Video (object-contain) */}
+                <video
+                  ref={videoRef}
+                  className="relative w-full h-full object-contain z-10"
+                  src={optimizeUrl(vid.video_url)} 
+                  loop
+                  muted={globalMute} 
+                  playsInline
+                  preload="metadata"
+                  onTimeUpdate={handleTimeUpdate}
+                />
+              </>
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 pointer-events-none z-10"></div>
 
             {/* Tap to Unmute / Play Icon */}
             {(!isPlaying || globalMute) && (
