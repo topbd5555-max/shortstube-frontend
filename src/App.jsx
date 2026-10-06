@@ -1,177 +1,170 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
-// 🚀 Cloudinary URL Optimizer 
 const optimizeUrl = (url) => {
   if (!url) return "";
   return url.replace('/upload/', '/upload/q_auto,f_auto/');
 };
 
-const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleGlobalMute }) => {
+// 1. Comment Bottom Sheet Component
+const CommentDrawer = ({ isOpen, onClose }) => (
+  <div className={`absolute bottom-0 left-0 w-full h-[60%] bg-gray-900/95 backdrop-blur-xl rounded-t-3xl z-50 transition-transform duration-500 border-t border-white/20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+    <div className="w-full flex justify-center pt-3 pb-2" onClick={onClose}>
+      <div className="w-12 h-1.5 bg-gray-500 rounded-full cursor-pointer hover:bg-white transition"></div>
+    </div>
+    <div className="p-4 text-white">
+      <h3 className="text-lg font-bold mb-4">Comments (456)</h3>
+      <div className="space-y-4 overflow-y-auto h-[250px] pr-2">
+        {['This is amazing! 🔥', 'Pro developer spotted 💻', 'Next level UI 😍', 'Bhai crazy lagche!'].map((msg, i) => (
+          <div key={i} className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-500 to-cyan-500 shrink-0"></div>
+            <div>
+              <p className="text-xs text-gray-400 font-bold">User_{i+1}</p>
+              <p className="text-sm">{msg}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+        <input type="text" placeholder="Add a comment..." className="w-full bg-gray-800 rounded-full px-4 py-2 text-sm outline-none border border-gray-700 focus:border-pink-500" />
+        <button className="bg-pink-600 px-4 py-2 rounded-full font-bold">Post</button>
+      </div>
+    </div>
+  </div>
+);
+
+// 2. Main Video Component
+const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleGlobalMute, isAutoScroll }) => {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showHeart, setShowHeart] = useState(false);
   const [liked, setLiked] = useState(false);
-  
-  // 🚀 ম্যাজিক সাইজ ডিটেক্টর স্টেট
   const [isLandscape, setIsLandscape] = useState(false);
+  const [isSpeeding, setIsSpeeding] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [volumeHover, setVolumeHover] = useState(false);
 
   const isActive = index === activeIndex;
   const isNearActive = Math.abs(index - activeIndex) <= 2;
 
+  // 3. Dynamic Theme (Based on source)
+  const themeGlow = vid.source === 'tiktok' ? 'rgba(255,20,147,0.5)' : 'rgba(34,211,238,0.5)';
+  const themeBorder = vid.source === 'tiktok' ? 'border-pink-500' : 'border-cyan-500';
+
   useEffect(() => {
     if (isActive && videoRef.current) {
-      videoRef.current.play().then(() => setIsPlaying(true)).catch(err => console.log("Autoplay prevented:", err));
+      const savedTime = localStorage.getItem(`vidTime_${vid._id || index}`);
+      if (savedTime && savedTime < videoRef.current.duration - 2) {
+        videoRef.current.currentTime = parseFloat(savedTime);
+      }
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(err => console.log(err));
     } else if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0; 
       setIsPlaying(false);
+      setShowComments(false);
     }
-  }, [isActive]);
+  }, [isActive, index, vid._id]);
 
   const togglePlay = (e) => {
     if (e) e.stopPropagation();
     if (videoRef.current) {
-      if (globalMute) {
-        toggleGlobalMute();
-      } else {
-        if (isPlaying) {
-          videoRef.current.pause();
-          setIsPlaying(false);
-        } else {
-          videoRef.current.play();
-          setIsPlaying(true);
-        }
+      if (globalMute) { toggleGlobalMute(); } 
+      else {
+        isPlaying ? videoRef.current.pause() : videoRef.current.play();
+        setIsPlaying(!isPlaying);
       }
-      if (navigator.vibrate) navigator.vibrate(50); 
+      if (navigator.vibrate) navigator.vibrate(50);
     }
+  };
+
+  const handlePointerDown = (e) => {
+    if (e.button !== 0 && e.type !== 'touchstart') return; 
+    if (videoRef.current) { videoRef.current.playbackRate = 2.0; setIsSpeeding(true); }
+  };
+
+  const handlePointerUp = () => {
+    if (videoRef.current) { videoRef.current.playbackRate = 1.0; setIsSpeeding(false); }
   };
 
   const handleDoubleClick = (e) => {
-    e.stopPropagation();
-    setLiked(true);
-    setShowHeart(true);
+    e.stopPropagation(); setLiked(true); setShowHeart(true);
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
     setTimeout(() => setShowHeart(false), 1000);
-  };
-
-  const handleShare = async (e) => {
-    e.stopPropagation();
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: vid.title,
-          text: 'Check out this awesome Shorts!',
-          url: vid.original_url || vid.video_url,
-        });
-      } catch (err) { console.log('Share canceled'); }
-    } else {
-      alert("Sharing not supported on this browser. Link copied!");
-      navigator.clipboard.writeText(vid.original_url || vid.video_url);
-    }
   };
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
       const current = videoRef.current.currentTime;
-      const duration = videoRef.current.duration;
-      setProgress((current / duration) * 100);
+      setProgress((current / videoRef.current.duration) * 100);
+      if (isActive && Math.floor(current) % 2 === 0) {
+        localStorage.setItem(`vidTime_${vid._id || index}`, current);
+      }
     }
   };
 
-  const enablePiP = async (e) => {
-    e.stopPropagation();
-    if (videoRef.current && document.pictureInPictureEnabled) {
-      await videoRef.current.requestPictureInPicture();
-    }
+  const handleVideoEnded = () => {
+    localStorage.removeItem(`vidTime_${vid._id || index}`);
+    if (isAutoScroll) scrollToVideo(index + 1);
   };
 
-  // 🚀 ভিডিওর অরিজিনাল সাইজ মেপে ফ্রেমকে সিগন্যাল দেওয়া
-  const handleLoadedMetadata = (e) => {
-    const width = e.target.videoWidth;
-    const height = e.target.videoHeight;
-    // যদি ভিডিও চওড়া বা স্কয়ার হয় (width যদি height এর ৮০% এর বেশি হয়)
-    if (width >= height * 0.8) {
-      setIsLandscape(true);
-    } else {
-      setIsLandscape(false);
-    }
-  };
+  const handleLoadedMetadata = (e) => setIsLandscape(e.target.videoWidth >= e.target.videoHeight * 0.8);
 
   return (
-    <div id={`video-${index}`} className="h-screen w-full snap-start flex flex-col items-center justify-center relative py-4">
-      <div className="relative flex flex-col items-center">
+    <div id={`video-${index}`} className="h-screen w-full snap-start flex flex-col items-center justify-center relative py-4 perspective-1000">
+      <div className={`relative flex flex-col items-center transition-transform duration-500 ${isActive ? 'scale-100' : 'scale-95 opacity-50 blur-sm'}`}>
         
-        {/* 🚀 Dynamic Frame Magic (ফ্রেম নিজে নিজেই চওড়া বা লম্বা হবে) */}
-        <div className={`neon-border-wrapper ${isLandscape ? 'w-[360px] h-[400px] md:w-[600px] md:h-[450px]' : 'w-[340px] h-[600px] md:w-[380px] md:h-[680px]'} mb-6 transition-all duration-500 shadow-[0_0_${isActive ? '40px' : '20px'}_${vid.source === 'tiktok' ? 'rgba(255,20,147,0.4)' : 'rgba(34,211,238,0.4)'}]`}>
+        <div className={`neon-border-wrapper ${isLandscape ? 'w-[360px] h-[400px] md:w-[600px] md:h-[450px]' : 'w-[340px] h-[600px] md:w-[380px] md:h-[680px]'} mb-6 transition-all duration-500 rounded-2xl`} style={{ boxShadow: `0 0 ${isActive ? '40px' : '20px'} ${themeGlow}` }}>
           <div 
             className="neon-inner flex flex-col relative overflow-hidden bg-black group rounded-2xl cursor-pointer h-full" 
-            onClick={togglePlay}
-            onDoubleClick={handleDoubleClick}
+            onClick={togglePlay} onDoubleClick={handleDoubleClick}
+            onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}
           >
             
             {isNearActive && (
               <>
-                {/* Premium Blurred Background */}
-                <video
-                  className="absolute inset-0 w-full h-full object-cover opacity-30 blur-3xl scale-125 z-0"
-                  src={optimizeUrl(vid.video_url)} 
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                />
-                
-                {/* 🚀 মেইন ভিডিও ট্যাগ (অন-লোড মেটাডেটা যুক্ত করা হয়েছে) */}
+                <video className="absolute inset-0 w-full h-full object-cover opacity-30 blur-3xl scale-125 z-0" src={optimizeUrl(vid.video_url)} autoPlay muted loop playsInline />
                 <video
                   ref={videoRef}
                   className="relative w-full h-full object-contain z-10"
                   src={optimizeUrl(vid.video_url)} 
-                  loop
-                  muted={globalMute} 
-                  playsInline
-                  preload="metadata"
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={handleLoadedMetadata} 
+                  loop={!isAutoScroll} muted={globalMute} playsInline preload={isActive ? "auto" : "metadata"}
+                  onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata} onEnded={handleVideoEnded} 
                 />
               </>
             )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 pointer-events-none z-10"></div>
 
+            {isSpeeding && (
+              <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-1 rounded-full z-40 text-white font-bold text-sm tracking-wider flex items-center gap-2 backdrop-blur-md animate-pulse">▶▶ 2x Speed</div>
+            )}
+
             {(!isPlaying || globalMute) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-                <div className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white text-4xl border border-white/20 pl-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                  {globalMute ? "🔇" : "▶"}
-                </div>
+                <div className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white text-4xl border border-white/20 pl-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">{globalMute ? "🔇" : "▶"}</div>
               </div>
             )}
 
             {showHeart && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
-                <div className="text-9xl text-pink-500 drop-shadow-[0_0_30px_rgba(255,20,147,1)] animate-bounce scale-150 transition-transform duration-300">
-                  ❤
-                </div>
-              </div>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40"><div className="text-9xl text-pink-500 animate-ping scale-150 transition-transform duration-300">❤</div></div>
             )}
 
             <div className="absolute bottom-20 right-4 z-20 flex flex-col gap-5 items-center pointer-events-auto">
-              <div className="w-10 h-10 bg-white rounded-full border-2 border-pink-500 overflow-hidden mb-2 shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+              <div className={`w-10 h-10 bg-white rounded-full border-2 ${themeBorder} overflow-hidden mb-2 shadow-[0_0_10px_rgba(255,255,255,0.5)]`}>
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${vid.title}`} alt="avatar" />
               </div>
-
               <div className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition" onClick={handleDoubleClick}>
                 <div className={`text-3xl drop-shadow-[0_0_15px_rgba(255,20,147,1)] ${liked ? 'text-pink-500' : 'text-white'}`}>❤</div>
                 <span className="text-xs text-white mt-1 font-bold">{liked ? '440K' : '439K'}</span>
               </div>
-              <div className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition">
+              
+              {/* 4. Bottom Sheet Comment Trigger */}
+              <div className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
                 <div className="text-3xl text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">💬</div>
                 <span className="text-xs text-white mt-1 font-bold">456</span>
               </div>
-              <div onClick={enablePiP} className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition" title="Picture in Picture">
-                <div className="text-2xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,1)]">🔲</div>
-              </div>
-              <div onClick={handleShare} className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition">
+              
+              <div className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition">
                 <div className="text-3xl text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,1)]">↗️</div>
                 <span className="text-xs text-white mt-1 font-bold">Share</span>
               </div>
@@ -179,25 +172,21 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
 
             <div className="absolute bottom-6 left-5 right-20 z-20 pointer-events-none">
               <div className="flex gap-2 mb-3">
-                <span className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-[0_0_10px_rgba(34,211,238,0.8)] text-white ${vid.source === 'tiktok' ? 'bg-gradient-to-r from-pink-500 to-rose-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-[0_0_10px_${themeGlow}] text-white ${vid.source === 'tiktok' ? 'bg-gradient-to-r from-pink-500 to-rose-500' : 'bg-gradient-to-r from-blue-600 to-cyan-500'}`}>
                   {vid.source === 'tiktok' ? 'TikTok' : 'YouTube'}
                 </span>
-                <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/20 text-white backdrop-blur-md">
-                  #{vid.tags && vid.tags.length > 0 ? vid.tags[0] : 'Trending'}
-                </span>
               </div>
-              <h2 className="text-white font-bold text-sm md:text-[15px] leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,1)] line-clamp-2">
-                {vid.title}
-              </h2>
+              <h2 className="text-white font-bold text-sm md:text-[15px] leading-snug drop-shadow-[0_2px_4px_rgba(0,0,0,1)] line-clamp-2">{vid.title}</h2>
             </div>
             
             <div className="absolute bottom-0 left-0 h-1 bg-white/20 w-full z-20">
-               <div className="h-full bg-gradient-to-r from-pink-500 to-cyan-400 transition-all duration-100" style={{ width: `${progress}%` }}></div>
+               <div className={`h-full transition-all duration-75 ${vid.source === 'tiktok' ? 'bg-pink-500' : 'bg-cyan-500'}`} style={{ width: `${progress}%` }}></div>
             </div>
+
+            <CommentDrawer isOpen={showComments} onClose={(e) => { e.stopPropagation(); setShowComments(false); }} />
 
           </div>
         </div>
-        <div className="podium absolute -bottom-5"></div>
       </div>
     </div>
   );
@@ -210,153 +199,145 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   
   const [globalMute, setGlobalMute] = useState(true);
-  const [activeHashtag, setActiveHashtag] = useState('All');
   const [visibleCount, setVisibleCount] = useState(10); 
   const [watchHistory, setWatchHistory] = useState(() => JSON.parse(localStorage.getItem('shortsHistory') || '[]'));
-
+  const [isAutoScroll, setIsAutoScroll] = useState(false);
+  
+  // 5. Wellbeing / Watch Time Tracker & Offline mode state
+  const [watchSeconds, setWatchSeconds] = useState(0);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
   const rains = useMemo(() => Array.from({ length: 40 }).map(() => ({ left: `${Math.random() * 100}vw`, animationDuration: `${Math.random() * 1 + 0.5}s`, animationDelay: `${Math.random() * 2}s` })), []);
-  const fireflies = useMemo(() => Array.from({ length: 20 }).map(() => ({ left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh`, animationDuration: `${Math.random() * 3 + 2}s`, animationDelay: `${Math.random() * 2}s` })), []);
-  const butterflies = useMemo(() => Array.from({ length: 5 }).map(() => ({ left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh`, animationDuration: `${Math.random() * 5 + 5}s`, animationDelay: `${Math.random() * 3}s` })), []);
 
   useEffect(() => {
-    fetch('https://shortstube-api.onrender.com/api/videos', {
-      method: 'GET',
-      headers: { 'x-api-key': 'ShortsTube_Pro_Max_Secret_2026', 'Content-Type': 'application/json' }
-    })
+    // 6. Register Service Worker for Offline 500 Videos
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => console.log('Offline Caching Active (SW Registered)'));
+    }
+
+    // Network Status Listeners
+    window.addEventListener('online', () => setIsOffline(false));
+    window.addEventListener('offline', () => setIsOffline(true));
+
+    fetch('https://shortstube-api.onrender.com/api/videos', { headers: { 'x-api-key': 'ShortsTube_Pro_Max_Secret_2026' }})
       .then(res => res.json())
       .then(data => { 
-        const videoArray = data.videos ? data.videos : data;
-        setAllVideos(videoArray.reverse()); 
+        setAllVideos((data.videos ? data.videos : data).reverse()); 
         setLoading(false); 
       })
       .catch(err => { console.error("Error:", err); setLoading(false); });
+      
+    // Wellbeing Timer
+    const timer = setInterval(() => setWatchSeconds(s => s + 1), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  const filteredVideos = allVideos.filter(vid => {
-    let sourceMatch = false;
-    if (activeTab === 'Tik Shorts') sourceMatch = vid.source === 'tiktok';
-    if (activeTab === 'You Shorts') sourceMatch = vid.source === 'youtube';
-    
-    let tagMatch = activeHashtag === 'All' ? true : (vid.title.toLowerCase().includes(activeHashtag.toLowerCase()));
-    return sourceMatch && tagMatch;
-  });
-
-  const displayedVideos = filteredVideos.slice(0, visibleCount);
-
-  useEffect(() => {
-    if (displayedVideos.length > 0 && activeIndex >= 0) {
-      const currentVid = displayedVideos[activeIndex];
-      const vidId = currentVid._id || currentVid.original_url;
-      if (vidId && !watchHistory.includes(vidId)) {
-        const newHistory = [...watchHistory, vidId];
-        setWatchHistory(newHistory);
-        localStorage.setItem('shortsHistory', JSON.stringify(newHistory));
-      }
-      
-      if (activeIndex >= visibleCount - 3) {
-        setVisibleCount(prev => prev + 10);
-      }
-    }
-  }, [activeIndex, displayedVideos, visibleCount]);
+  const displayedVideos = allVideos.filter(vid => vid.source === (activeTab === 'Tik Shorts' ? 'tiktok' : 'youtube')).slice(0, visibleCount);
 
   const scrollToVideo = useCallback((index) => {
-    if (index >= 0 && index < filteredVideos.length) {
+    if (index >= 0 && index < allVideos.length) {
       document.getElementById(`video-${index}`).scrollIntoView({ behavior: 'smooth' });
       setActiveIndex(index);
     }
-  }, [filteredVideos.length]);
+  }, [allVideos.length]);
 
+  // 7. Voice Control & Keyboard Pro Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); scrollToVideo(activeIndex + 1); } 
       else if (e.key === 'ArrowUp') { e.preventDefault(); scrollToVideo(activeIndex - 1); } 
-      else if (e.key === ' ') {
-        e.preventDefault();
-        setGlobalMute(prev => !prev);
-      }
+      else if (e.key === ' ' || e.key === 'm') { e.preventDefault(); setGlobalMute(prev => !prev); }
     };
     window.addEventListener('keydown', handleKeyDown);
+
+    // AI Voice Control Setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.onresult = (event) => {
+        const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        if (command.includes('next')) scrollToVideo(activeIndex + 1);
+        if (command.includes('back') || command.includes('previous')) scrollToVideo(activeIndex - 1);
+        if (command.includes('mute') || command.includes('play')) setGlobalMute(false);
+      };
+      recognition.start();
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeIndex, scrollToVideo]);
 
+  // 8. Intersection Observer + Infinite Scroll
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = Number(entry.target.id.split('-')[1]);
-            setActiveIndex(index);
-          }
-        });
-      },
-      { threshold: 0.6 }
-    );
+    if (activeIndex >= visibleCount - 3) setVisibleCount(prev => prev + 10);
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => { if (entry.isIntersecting) setActiveIndex(Number(entry.target.id.split('-')[1])); });
+    }, { threshold: 0.6 });
     document.querySelectorAll('[id^="video-"]').forEach((video) => observer.observe(video));
     return () => observer.disconnect();
-  }, [displayedVideos]);
+  }, [displayedVideos, activeIndex, visibleCount]);
 
   return (
     <div className="nature-bg relative w-full h-screen overflow-hidden flex font-sans">
-      
       <div className="absolute inset-0 pointer-events-none z-0">
         {rains.map((style, i) => <div key={`rain-${i}`} className="rain" style={style}></div>)}
-        {fireflies.map((style, i) => <div key={`firefly-${i}`} className="firefly" style={style}></div>)}
-        {butterflies.map((style, i) => <div key={`butterfly-${i}`} className="butterfly" style={style}></div>)}
       </div>
 
-      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50 pointer-events-auto">
-        <button onClick={() => scrollToVideo(activeIndex - 1)} className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-2xl hover:bg-white/30 hover:scale-110 transition flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">▲</button>
-        <button onClick={() => scrollToVideo(activeIndex + 1)} className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-2xl hover:bg-white/30 hover:scale-110 transition flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.2)]">▼</button>
+      {/* Offline Mode UI Warning */}
+      {isOffline && (
+        <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-1 text-xs font-bold z-[100] animate-pulse">
+          ⚠️ You are offline. Playing cached videos!
+        </div>
+      )}
+
+      {/* Watch Time Dashboard */}
+      <div className="absolute bottom-4 left-4 z-50 text-white/50 text-[10px] font-bold font-mono bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
+        ⏱ Session: {Math.floor(watchSeconds/60)}m {watchSeconds%60}s
       </div>
 
-      <div className="hidden md:flex flex-col w-[280px] h-full glass-panel z-10 p-6">
-        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-12 tracking-wide drop-shadow-[0_0_15px_rgba(255,105,180,0.9)]">
-          ShortsTube
-        </h1>
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+        <span className="text-white text-xs font-bold tracking-wider">AUTO SCROLL</span>
+        <div onClick={() => setIsAutoScroll(!isAutoScroll)} className={`w-10 h-5 rounded-full cursor-pointer relative transition-colors duration-300 ${isAutoScroll ? 'bg-pink-500' : 'bg-gray-600'}`}>
+          <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform duration-300 ${isAutoScroll ? 'translate-x-5' : 'translate-x-1'}`}></div>
+        </div>
+      </div>
+
+      <div className="hidden md:flex flex-col w-[280px] h-full glass-panel z-10 p-6 relative">
+        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-12 tracking-wide drop-shadow-[0_0_15px_rgba(255,105,180,0.5)]">ShortsTube</h1>
         
-        <div className="mb-6 flex gap-2 flex-wrap">
-           <span onClick={() => {setActiveHashtag('All'); setActiveIndex(0)}} className={`px-3 py-1 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/30 transition ${activeHashtag === 'All' ? 'bg-white/30 font-bold' : 'bg-white/10'}`}>🌐 All</span>
-           <span onClick={() => {setActiveHashtag('Trending'); setActiveIndex(0)}} className={`px-3 py-1 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/30 transition ${activeHashtag === 'Trending' ? 'bg-pink-500/50' : 'bg-white/10'}`}>🔥 Trending</span>
-           <span onClick={() => {setActiveHashtag('Funny'); setActiveIndex(0)}} className={`px-3 py-1 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/30 transition ${activeHashtag === 'Funny' ? 'bg-cyan-500/50' : 'bg-white/10'}`}>😂 Funny</span>
+        {/* 9. Hashtag Analytics Chart Simulation */}
+        <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
+          <p className="text-xs text-gray-400 font-bold mb-2">TRENDING TAGS 📈</p>
+          <div className="space-y-2">
+            <div><div className="flex justify-between text-[10px] text-white"><span>#Funny</span><span>85%</span></div><div className="h-1.5 w-full bg-gray-700 rounded-full mt-1"><div className="h-full bg-cyan-400 rounded-full" style={{width: '85%'}}></div></div></div>
+            <div><div className="flex justify-between text-[10px] text-white"><span>#Dance</span><span>60%</span></div><div className="h-1.5 w-full bg-gray-700 rounded-full mt-1"><div className="h-full bg-pink-400 rounded-full" style={{width: '60%'}}></div></div></div>
+          </div>
         </div>
 
         <nav className="flex flex-col gap-6">
-          <div onClick={() => { setActiveTab('Tik Shorts'); setActiveHashtag('All'); setActiveIndex(0); setVisibleCount(10); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'Tik Shorts' ? 'bg-[#1e293b]/60 border border-pink-400 shadow-[0_0_15px_rgba(255,105,180,0.5),inset_0_0_10px_rgba(255,105,180,0.3)] text-white' : 'text-gray-300 hover:text-white'}`}>
-            <span className="text-pink-400 text-2xl drop-shadow-[0_0_10px_rgba(255,105,180,1)]">🎵</span>
-            <span className="font-bold text-[15px] tracking-wide">Tik Shorts</span>
-          </div>
-          <div onClick={() => { setActiveTab('You Shorts'); setActiveHashtag('All'); setActiveIndex(0); setVisibleCount(10); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'You Shorts' ? 'bg-[#1e293b]/60 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5),inset_0_0_10px_rgba(34,211,238,0.3)] text-white' : 'text-gray-300 hover:text-white'}`}>
-            <span className="text-cyan-400 text-2xl drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">▶</span>
-            <span className="font-bold text-[15px] tracking-wide">You Shorts</span>
-          </div>
+          <div onClick={() => { setActiveTab('Tik Shorts'); setActiveIndex(0); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'Tik Shorts' ? 'bg-[#1e293b]/80 border border-pink-400 shadow-[0_0_15px_rgba(255,105,180,0.4)] text-white' : 'text-gray-400 hover:text-white'}`}>🎵 Tik Shorts</div>
+          <div onClick={() => { setActiveTab('You Shorts'); setActiveIndex(0); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'You Shorts' ? 'bg-[#1e293b]/80 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-white' : 'text-gray-400 hover:text-white'}`}>▶ You Shorts</div>
         </nav>
         
-        <div className="mt-auto text-white/50 text-xs text-center pb-4">
-          Videos Watched: {watchHistory.length}
+        {/* Pro Shortcuts Hint */}
+        <div className="absolute bottom-6 left-6 text-xs text-gray-500 font-bold">
+          ⌨ Shortcuts: (↑ ↓ Space M) <br/> 🎤 Try saying "Next"
         </div>
       </div>
 
-      <div className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth z-10 [&::-webkit-scrollbar]:hidden pointer-events-auto">
+      <div className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth z-10 [&::-webkit-scrollbar]:hidden pointer-events-auto relative">
         {loading ? (
-          <div className="h-full flex items-center justify-center text-3xl font-bold text-cyan-400 animate-pulse">Loading...</div>
-        ) : displayedVideos.length === 0 ? (
+          // 10. Neon Skeleton Loader
           <div className="h-full flex items-center justify-center">
-            <div className="glass-panel p-8 rounded-2xl border border-white/20 text-center">
-              <span className="text-5xl mb-4 block">📭</span>
-              <h2 className="text-2xl font-bold text-white mb-2">No Videos Found!</h2>
-            </div>
+             <div className="w-[340px] h-[600px] rounded-2xl border-2 border-gray-800 bg-gray-900/50 animate-pulse relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-transparent"></div>
+                <div className="absolute bottom-20 right-4 space-y-4"><div className="w-10 h-10 bg-gray-700 rounded-full"></div><div className="w-10 h-10 bg-gray-700 rounded-full"></div></div>
+                <div className="absolute bottom-6 left-4 w-40 h-4 bg-gray-700 rounded-full"></div>
+             </div>
           </div>
         ) : (
           displayedVideos.map((vid, index) => (
-            <VideoCard 
-              key={index} 
-              index={index} 
-              activeIndex={activeIndex} 
-              vid={vid} 
-              scrollToVideo={scrollToVideo}
-              globalMute={globalMute}
-              toggleGlobalMute={() => setGlobalMute(!globalMute)}
-            />
+            <VideoCard key={index} index={index} activeIndex={activeIndex} vid={vid} scrollToVideo={scrollToVideo} globalMute={globalMute} toggleGlobalMute={() => setGlobalMute(!globalMute)} isAutoScroll={isAutoScroll} />
           ))
         )}
       </div>
