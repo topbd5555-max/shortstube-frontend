@@ -42,12 +42,10 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
   const [isLandscape, setIsLandscape] = useState(false);
   const [isSpeeding, setIsSpeeding] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [volumeHover, setVolumeHover] = useState(false);
 
   const isActive = index === activeIndex;
   const isNearActive = Math.abs(index - activeIndex) <= 2;
 
-  // 3. Dynamic Theme (Based on source)
   const themeGlow = vid.source === 'tiktok' ? 'rgba(255,20,147,0.5)' : 'rgba(34,211,238,0.5)';
   const themeBorder = vid.source === 'tiktok' ? 'border-pink-500' : 'border-cyan-500';
 
@@ -158,7 +156,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
                 <span className="text-xs text-white mt-1 font-bold">{liked ? '440K' : '439K'}</span>
               </div>
               
-              {/* 4. Bottom Sheet Comment Trigger */}
               <div className="flex flex-col items-center group cursor-pointer hover:-translate-y-1 transition" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
                 <div className="text-3xl text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]">💬</div>
                 <span className="text-xs text-white mt-1 font-bold">456</span>
@@ -184,7 +181,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
             </div>
 
             <CommentDrawer isOpen={showComments} onClose={(e) => { e.stopPropagation(); setShowComments(false); }} />
-
           </div>
         </div>
       </div>
@@ -200,34 +196,37 @@ export default function App() {
   
   const [globalMute, setGlobalMute] = useState(true);
   const [visibleCount, setVisibleCount] = useState(10); 
-  const [watchHistory, setWatchHistory] = useState(() => JSON.parse(localStorage.getItem('shortsHistory') || '[]'));
   const [isAutoScroll, setIsAutoScroll] = useState(false);
   
-  // 5. Wellbeing / Watch Time Tracker & Offline mode state
   const [watchSeconds, setWatchSeconds] = useState(0);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
   const rains = useMemo(() => Array.from({ length: 40 }).map(() => ({ left: `${Math.random() * 100}vw`, animationDuration: `${Math.random() * 1 + 0.5}s`, animationDelay: `${Math.random() * 2}s` })), []);
 
   useEffect(() => {
-    // 6. Register Service Worker for Offline 500 Videos
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => console.log('Offline Caching Active (SW Registered)'));
+      navigator.serviceWorker.register('/sw.js').then(() => console.log('Offline Caching Active'));
     }
 
-    // Network Status Listeners
     window.addEventListener('online', () => setIsOffline(false));
     window.addEventListener('offline', () => setIsOffline(true));
 
     fetch('https://shortstube-api.onrender.com/api/videos', { headers: { 'x-api-key': 'ShortsTube_Pro_Max_Secret_2026' }})
       .then(res => res.json())
       .then(data => { 
-        setAllVideos((data.videos ? data.videos : data).reverse()); 
+        let videoArray = data.videos ? data.videos : data;
+        
+        // 🚀 SMART SHUFFLE FEATURE: Array কে রেন্ডম করে দেওয়া হচ্ছে!
+        for (let i = videoArray.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [videoArray[i], videoArray[j]] = [videoArray[j], videoArray[i]];
+        }
+        
+        setAllVideos(videoArray); 
         setLoading(false); 
       })
       .catch(err => { console.error("Error:", err); setLoading(false); });
       
-    // Wellbeing Timer
     const timer = setInterval(() => setWatchSeconds(s => s + 1), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -241,7 +240,6 @@ export default function App() {
     }
   }, [allVideos.length]);
 
-  // 7. Voice Control & Keyboard Pro Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); scrollToVideo(activeIndex + 1); } 
@@ -249,25 +247,9 @@ export default function App() {
       else if (e.key === ' ' || e.key === 'm') { e.preventDefault(); setGlobalMute(prev => !prev); }
     };
     window.addEventListener('keydown', handleKeyDown);
-
-    // AI Voice Control Setup
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.onresult = (event) => {
-        const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
-        if (command.includes('next')) scrollToVideo(activeIndex + 1);
-        if (command.includes('back') || command.includes('previous')) scrollToVideo(activeIndex - 1);
-        if (command.includes('mute') || command.includes('play')) setGlobalMute(false);
-      };
-      recognition.start();
-    }
-
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeIndex, scrollToVideo]);
 
-  // 8. Intersection Observer + Infinite Scroll
   useEffect(() => {
     if (activeIndex >= visibleCount - 3) setVisibleCount(prev => prev + 10);
     const observer = new IntersectionObserver((entries) => {
@@ -283,14 +265,12 @@ export default function App() {
         {rains.map((style, i) => <div key={`rain-${i}`} className="rain" style={style}></div>)}
       </div>
 
-      {/* Offline Mode UI Warning */}
       {isOffline && (
         <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-1 text-xs font-bold z-[100] animate-pulse">
           ⚠️ You are offline. Playing cached videos!
         </div>
       )}
 
-      {/* Watch Time Dashboard */}
       <div className="absolute bottom-4 left-4 z-50 text-white/50 text-[10px] font-bold font-mono bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
         ⏱ Session: {Math.floor(watchSeconds/60)}m {watchSeconds%60}s
       </div>
@@ -305,7 +285,6 @@ export default function App() {
       <div className="hidden md:flex flex-col w-[280px] h-full glass-panel z-10 p-6 relative">
         <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-12 tracking-wide drop-shadow-[0_0_15px_rgba(255,105,180,0.5)]">ShortsTube</h1>
         
-        {/* 9. Hashtag Analytics Chart Simulation */}
         <div className="mb-6 p-4 bg-white/5 rounded-xl border border-white/10">
           <p className="text-xs text-gray-400 font-bold mb-2">TRENDING TAGS 📈</p>
           <div className="space-y-2">
@@ -319,15 +298,29 @@ export default function App() {
           <div onClick={() => { setActiveTab('You Shorts'); setActiveIndex(0); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'You Shorts' ? 'bg-[#1e293b]/80 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-white' : 'text-gray-400 hover:text-white'}`}>▶ You Shorts</div>
         </nav>
         
-        {/* Pro Shortcuts Hint */}
         <div className="absolute bottom-6 left-6 text-xs text-gray-500 font-bold">
-          ⌨ Shortcuts: (↑ ↓ Space M) <br/> 🎤 Try saying "Next"
+          ⌨ Shortcuts: (↑ ↓ Space M)
         </div>
+      </div>
+
+      {/* 🚀 FIXED UP/DOWN BUTTONS (z-[100] এবং flex-center দেওয়া হয়েছে) */}
+      <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-[100] pointer-events-auto">
+        <button 
+          onClick={() => scrollToVideo(activeIndex - 1)} 
+          className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-2xl hover:bg-pink-500/50 transition shadow-[0_0_15px_rgba(255,255,255,0.2)] flex items-center justify-center"
+        >
+          ▲
+        </button>
+        <button 
+          onClick={() => scrollToVideo(activeIndex + 1)} 
+          className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-2xl hover:bg-cyan-500/50 transition shadow-[0_0_15px_rgba(255,255,255,0.2)] flex items-center justify-center"
+        >
+          ▼
+        </button>
       </div>
 
       <div className="flex-1 h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth z-10 [&::-webkit-scrollbar]:hidden pointer-events-auto relative">
         {loading ? (
-          // 10. Neon Skeleton Loader
           <div className="h-full flex items-center justify-center">
              <div className="w-[340px] h-[600px] rounded-2xl border-2 border-gray-800 bg-gray-900/50 animate-pulse relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-transparent"></div>
