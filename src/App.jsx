@@ -45,7 +45,7 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo }) => {
             <video
               ref={videoRef}
               className="w-full h-full object-cover cursor-pointer"
-              src={vid.video_url} /* ডাটাবেসের লিংকের সাথে মেলানো হয়েছে */
+              src={vid.video_url} 
               loop
               playsInline
             />
@@ -118,17 +118,24 @@ export default function App() {
   const butterflies = useMemo(() => Array.from({ length: 5 }).map(() => ({ left: `${Math.random() * 100}vw`, top: `${Math.random() * 100}vh`, animationDuration: `${Math.random() * 5 + 5}s`, animationDelay: `${Math.random() * 3}s` })), []);
 
   useEffect(() => {
-    // API কল করার লিংক বসানো হয়েছে
-    fetch('http://localhost:5000/api/videos')
+    // Render এর লাইভ লিংক এবং সিকিউরিটি API Key বসানো হয়েছে
+    fetch('https://shortstube-api.onrender.com/api/videos', {
+      method: 'GET',
+      headers: { 
+        'x-api-key': 'ShortsTube_Pro_Max_Secret_2026', 
+        'Content-Type': 'application/json' 
+      }
+    })
       .then(res => res.json())
       .then(data => { 
-        setAllVideos(data.reverse()); 
+        // ডাটাবেস থেকে আসা ভিডিওগুলো সেভ করা হচ্ছে
+        const videoArray = data.videos ? data.videos : data;
+        setAllVideos(videoArray.reverse()); 
         setLoading(false); 
       })
       .catch(err => { console.error("Error:", err); setLoading(false); });
   }, []);
 
-  // ডাটাবেসের সোর্স অনুযায়ী ফিল্টার করা হয়েছে
   const displayedVideos = allVideos.filter(vid => {
     if (activeTab === 'Tik Shorts') return vid.source === 'tiktok';
     if (activeTab === 'You Shorts') return vid.source === 'youtube';
@@ -211,7 +218,7 @@ export default function App() {
             <span className="font-bold text-[15px] tracking-wide">Tik Shorts</span>
           </div>
           <div onClick={() => { setActiveTab('You Shorts'); setActiveIndex(0); }} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition transform hover:scale-105 ${activeTab === 'You Shorts' ? 'bg-[#1e293b]/60 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5),inset_0_0_10px_rgba(34,211,238,0.3)] text-white' : 'text-gray-300 hover:text-white'}`}>
-            <span className="text-cyan-400 text-2xl drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">▶️️</span>
+            <span className="text-cyan-400 text-2xl drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">▶</span>
             <span className="font-bold text-[15px] tracking-wide">You Shorts</span>
           </div>
         </nav>
