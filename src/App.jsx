@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
-// 🚀 Cloudinary URL Optimizer (ভিডিওর সাইজ ৬০% কমিয়ে রকেটের গতিতে লোড করবে)
+// 🚀 Cloudinary URL Optimizer 
 const optimizeUrl = (url) => {
   if (!url) return "";
   return url.replace('/upload/', '/upload/q_auto,f_auto/');
@@ -12,10 +12,11 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
   const [progress, setProgress] = useState(0);
   const [showHeart, setShowHeart] = useState(false);
   const [liked, setLiked] = useState(false);
+  
+  // 🚀 ম্যাজিক সাইজ ডিটেক্টর স্টেট
+  const [isLandscape, setIsLandscape] = useState(false);
 
   const isActive = index === activeIndex;
-  
-  // 🚀 Smart Pre-loading: একসাথে ৫৫০০ ভিডিও লোড না করে, শুধু ইউজারের আশেপাশের ৩টা ভিডিও মেমরিতে রাখবে!
   const isNearActive = Math.abs(index - activeIndex) <= 2;
 
   useEffect(() => {
@@ -23,7 +24,7 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
       videoRef.current.play().then(() => setIsPlaying(true)).catch(err => console.log("Autoplay prevented:", err));
     } else if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0; // Reset video when swiped away
+      videoRef.current.currentTime = 0; 
       setIsPlaying(false);
     }
   }, [isActive]);
@@ -31,9 +32,8 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
   const togglePlay = (e) => {
     if (e) e.stopPropagation();
     if (videoRef.current) {
-      // 🚀 Global Mute Fix: ভিডিওতে ট্যাপ করলে সাউন্ড আসবে, আবার ট্যাপ করলে পজ হবে
       if (globalMute) {
-        toggleGlobalMute(); // Unmute everywhere
+        toggleGlobalMute();
       } else {
         if (isPlaying) {
           videoRef.current.pause();
@@ -47,7 +47,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
     }
   };
 
-  // 🚀 Double Tap to Like
   const handleDoubleClick = (e) => {
     e.stopPropagation();
     setLiked(true);
@@ -56,7 +55,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
     setTimeout(() => setShowHeart(false), 1000);
   };
 
-  // 🚀 Native Web Share API
   const handleShare = async (e) => {
     e.stopPropagation();
     if (navigator.share) {
@@ -88,22 +86,33 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
     }
   };
 
+  // 🚀 ভিডিওর অরিজিনাল সাইজ মেপে ফ্রেমকে সিগন্যাল দেওয়া
+  const handleLoadedMetadata = (e) => {
+    const width = e.target.videoWidth;
+    const height = e.target.videoHeight;
+    // যদি ভিডিও চওড়া বা স্কয়ার হয় (width যদি height এর ৮০% এর বেশি হয়)
+    if (width >= height * 0.8) {
+      setIsLandscape(true);
+    } else {
+      setIsLandscape(false);
+    }
+  };
+
   return (
     <div id={`video-${index}`} className="h-screen w-full snap-start flex flex-col items-center justify-center relative py-4">
       <div className="relative flex flex-col items-center">
         
-        {/* 🚀 Dynamic Ambient Background */}
-        <div className={`neon-border-wrapper w-[340px] h-[600px] md:w-[380px] md:h-[680px] mb-6 transition-all duration-700 shadow-[0_0_${isActive ? '40px' : '20px'}_${vid.source === 'tiktok' ? 'rgba(255,20,147,0.4)' : 'rgba(34,211,238,0.4)'}]`}>
+        {/* 🚀 Dynamic Frame Magic (ফ্রেম নিজে নিজেই চওড়া বা লম্বা হবে) */}
+        <div className={`neon-border-wrapper ${isLandscape ? 'w-[360px] h-[400px] md:w-[600px] md:h-[450px]' : 'w-[340px] h-[600px] md:w-[380px] md:h-[680px]'} mb-6 transition-all duration-500 shadow-[0_0_${isActive ? '40px' : '20px'}_${vid.source === 'tiktok' ? 'rgba(255,20,147,0.4)' : 'rgba(34,211,238,0.4)'}]`}>
           <div 
             className="neon-inner flex flex-col relative overflow-hidden bg-black group rounded-2xl cursor-pointer h-full" 
             onClick={togglePlay}
             onDoubleClick={handleDoubleClick}
           >
             
-            {/* 🚀 Mobile Black Screen Fixed + Auto Size Video */}
             {isNearActive && (
               <>
-                {/* 🚀 Premium Blurred Background */}
+                {/* Premium Blurred Background */}
                 <video
                   className="absolute inset-0 w-full h-full object-cover opacity-30 blur-3xl scale-125 z-0"
                   src={optimizeUrl(vid.video_url)} 
@@ -113,7 +122,7 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
                   playsInline
                 />
                 
-                {/* 🚀 Auto-Size Main Video (object-contain) */}
+                {/* 🚀 মেইন ভিডিও ট্যাগ (অন-লোড মেটাডেটা যুক্ত করা হয়েছে) */}
                 <video
                   ref={videoRef}
                   className="relative w-full h-full object-contain z-10"
@@ -123,13 +132,13 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
                   playsInline
                   preload="metadata"
                   onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata} 
                 />
               </>
             )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90 pointer-events-none z-10"></div>
 
-            {/* Tap to Unmute / Play Icon */}
             {(!isPlaying || globalMute) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
                 <div className="w-20 h-20 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white text-4xl border border-white/20 pl-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
@@ -138,7 +147,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
               </div>
             )}
 
-            {/* 🚀 Animated Big Heart on Double Tap */}
             {showHeart && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
                 <div className="text-9xl text-pink-500 drop-shadow-[0_0_30px_rgba(255,20,147,1)] animate-bounce scale-150 transition-transform duration-300">
@@ -183,7 +191,6 @@ const VideoCard = ({ vid, index, activeIndex, scrollToVideo, globalMute, toggleG
               </h2>
             </div>
             
-            {/* 🚀 Custom Progress Bar */}
             <div className="absolute bottom-0 left-0 h-1 bg-white/20 w-full z-20">
                <div className="h-full bg-gradient-to-r from-pink-500 to-cyan-400 transition-all duration-100" style={{ width: `${progress}%` }}></div>
             </div>
@@ -202,10 +209,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('Tik Shorts');
   const [activeIndex, setActiveIndex] = useState(0);
   
-  // 🚀 New States for Advanced Features
   const [globalMute, setGlobalMute] = useState(true);
   const [activeHashtag, setActiveHashtag] = useState('All');
-  const [visibleCount, setVisibleCount] = useState(10); // Infinite Scroll limits
+  const [visibleCount, setVisibleCount] = useState(10); 
   const [watchHistory, setWatchHistory] = useState(() => JSON.parse(localStorage.getItem('shortsHistory') || '[]'));
 
   const rains = useMemo(() => Array.from({ length: 40 }).map(() => ({ left: `${Math.random() * 100}vw`, animationDuration: `${Math.random() * 1 + 0.5}s`, animationDelay: `${Math.random() * 2}s` })), []);
@@ -226,7 +232,6 @@ export default function App() {
       .catch(err => { console.error("Error:", err); setLoading(false); });
   }, []);
 
-  // 🚀 Filter logic based on Tab AND Hashtag
   const filteredVideos = allVideos.filter(vid => {
     let sourceMatch = false;
     if (activeTab === 'Tik Shorts') sourceMatch = vid.source === 'tiktok';
@@ -236,10 +241,8 @@ export default function App() {
     return sourceMatch && tagMatch;
   });
 
-  // 🚀 Infinite Scroll slice (Render only what's needed)
   const displayedVideos = filteredVideos.slice(0, visibleCount);
 
-  // 🚀 Track Watch History
   useEffect(() => {
     if (displayedVideos.length > 0 && activeIndex >= 0) {
       const currentVid = displayedVideos[activeIndex];
@@ -250,7 +253,6 @@ export default function App() {
         localStorage.setItem('shortsHistory', JSON.stringify(newHistory));
       }
       
-      // Infinite Scroll Trigger: Load more if nearing the end
       if (activeIndex >= visibleCount - 3) {
         setVisibleCount(prev => prev + 10);
       }
@@ -270,7 +272,7 @@ export default function App() {
       else if (e.key === 'ArrowUp') { e.preventDefault(); scrollToVideo(activeIndex - 1); } 
       else if (e.key === ' ') {
         e.preventDefault();
-        setGlobalMute(prev => !prev); // Spacebar unmutes/mutes
+        setGlobalMute(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -312,7 +314,6 @@ export default function App() {
           ShortsTube
         </h1>
         
-        {/* 🚀 Hashtag Filtering */}
         <div className="mb-6 flex gap-2 flex-wrap">
            <span onClick={() => {setActiveHashtag('All'); setActiveIndex(0)}} className={`px-3 py-1 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/30 transition ${activeHashtag === 'All' ? 'bg-white/30 font-bold' : 'bg-white/10'}`}>🌐 All</span>
            <span onClick={() => {setActiveHashtag('Trending'); setActiveIndex(0)}} className={`px-3 py-1 rounded-full text-xs text-white border border-white/20 cursor-pointer hover:bg-white/30 transition ${activeHashtag === 'Trending' ? 'bg-pink-500/50' : 'bg-white/10'}`}>🔥 Trending</span>
@@ -330,7 +331,6 @@ export default function App() {
           </div>
         </nav>
         
-        {/* Shows Watch History Count */}
         <div className="mt-auto text-white/50 text-xs text-center pb-4">
           Videos Watched: {watchHistory.length}
         </div>
